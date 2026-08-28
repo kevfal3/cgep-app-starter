@@ -23,7 +23,7 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.6.0"
+          terraform_version: "1.9.8"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -39,7 +39,7 @@ jobs:
       - name: Terraform Plan (Starter)
         working-directory: terraform
         run: |
-          terraform plan -out=tfplan
+          terraform plan -out=tfplan -var="aws_region=us-east-1"
           terraform show -json tfplan > plan.json
 
       # ── Step 2: Policy Check ───────────────────────────────────────

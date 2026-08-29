@@ -1,0 +1,2 @@
+VALID: Model C:\Users\kevfa\grc-terraform-course\cgep-app-starter\oscal\component-definitions\acme-health-hipaa\component-definition.json passed the Validator to confirm the model passes all registered validation tests.
+VALID: Model C:\Users\kevfa\grc-terraform-course\cgep-app-starter\oscal\profiles\hipaa-minimum\profile.json passed the Validator to confirm the model passes all registered validation tests.

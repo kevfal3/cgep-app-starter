@@ -1,0 +1,116 @@
+{
+  "component-definition": {
+    "uuid": "34bea681-2fc3-4c7b-b688-01ff50229b46",
+    "metadata": {
+      "title": "Acme Health Patient Intake API — HIPAA GRC Baseline",
+      "last-modified": "2026-08-28T00:00:00.000+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.2.1",
+      "parties": [
+        {
+          "uuid": "767ad719-ca8b-457c-8b1f-534e9fbaefad",
+          "type": "organization",
+          "name": "Acme Health"
+        }
+      ]
+    },
+    "components": [
+      {
+        "uuid": "a32e59e9-31c0-48a9-aa4b-d15eb4748608",
+        "type": "software",
+        "title": "acme-health-grc-baseline",
+        "description": "GRC baseline layer wrapping the Acme Health Patient Intake API. Adds CMK encryption, TLS-only access, versioning, least-privilege IAM, audit logging, CloudTrail, and an immutable evidence vault. Closes GAP-01 through GAP-08 from GAPS.md.",
+        "purpose": "Make the cgep-app-starter Patient Intake API audit-defensible under HIPAA Security Rule within 30 days without slowing the engineering team.",
+        "responsible-roles": [
+          { "role-id": "provider", "party-uuids": ["767ad719-ca8b-457c-8b1f-534e9fbaefad"] }
+        ],
+        "control-implementations": [
+          {
+            "uuid": "7b34550d-ed8b-4dca-afc5-3a9ca73972e7",
+            "source": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json",
+            "description": "HIPAA Security Rule controls implemented via NIST SP 800-53 Rev 5 mapping. Primary framework: HIPAA Security Rule (45 CFR Part 164).",
+            "implemented-requirements": [
+              {
+                "uuid": "4b4ce080-07b5-4858-a95b-d46657f1ac8b",
+                "control-id": "sc-28",
+                "description": "PHI encrypted at rest using customer-managed KMS keys (CMK). S3 uploads bucket uses SSE-KMS via aws_s3_bucket_server_side_encryption_configuration. DynamoDB submissions table uses CMK via server_side_encryption block. Closes GAP-01 and GAP-02. Maps to HIPAA 164.312(a)(2)(iv).",
+                "props": [
+                  { "name": "implementation-status", "value": "implemented" },
+                  { "name": "framework-control", "value": "HIPAA 164.312(a)(2)(iv)" },
+                  { "name": "terraform-resource", "value": "aws_kms_key.phi" },
+                  { "name": "terraform-resource", "value": "aws_s3_bucket_server_side_encryption_configuration.uploads" },
+                  { "name": "closes-gap", "value": "GAP-01 GAP-02" }
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://acme-health-grc-vault/runs/latest/bundle.tar.gz",
+                    "text": "Signed pipeline bundle containing terraform plan.json and state.json."
+                  }
+                ]
+              },
+              {
+                "uuid": "a7b04830-6c11-4738-a475-707c389f804e",
+                "control-id": "ac-3",
+                "description": "Access enforcement via TLS-only bucket policy (aws:SecureTransport deny) and least-privilege IAM replacing dynamodb:* and s3:* wildcards with specific actions. Lambda security group allows only HTTPS egress. Closes GAP-03 and GAP-07. Maps to HIPAA 164.312(e)(1) and 164.312(a)(1).",
+                "props": [
+                  { "name": "implementation-status", "value": "implemented" },
+                  { "name": "framework-control", "value": "HIPAA 164.312(e)(1)" },
+                  { "name": "framework-control", "value": "HIPAA 164.312(a)(1)" },
+                  { "name": "terraform-resource", "value": "aws_s3_bucket_policy.uploads_tls_only" },
+                  { "name": "terraform-resource", "value": "aws_iam_role_policy.lambda_least_privilege" },
+                  { "name": "closes-gap", "value": "GAP-03 GAP-07" }
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://acme-health-grc-vault/runs/latest/bundle.tar.gz",
+                    "text": "Signed pipeline bundle containing terraform plan.json and state.json."
+                  }
+                ]
+              },
+              {
+                "uuid": "4de91a08-73cd-4513-aabd-d96b4894c4c6",
+                "control-id": "au-3",
+                "description": "Audit records generated via CloudTrail (multi-region, log file validation) and API Gateway access logging to CloudWatch. DLQ captures failed Lambda invocations. Closes GAP-06 and GAP-08. Maps to HIPAA 164.312(b).",
+                "props": [
+                  { "name": "implementation-status", "value": "implemented" },
+                  { "name": "framework-control", "value": "HIPAA 164.312(b)" },
+                  { "name": "terraform-resource", "value": "aws_cloudtrail.mgmt" },
+                  { "name": "terraform-resource", "value": "aws_cloudwatch_log_group.apigw" },
+                  { "name": "closes-gap", "value": "GAP-06 GAP-08" }
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://acme-health-grc-vault/runs/latest/bundle.tar.gz",
+                    "text": "Signed pipeline bundle containing terraform plan.json and state.json."
+                  }
+                ]
+              },
+              {
+                "uuid": "609f1fcf-8109-4e4e-89b8-2789793b7069",
+                "control-id": "cm-6",
+                "description": "Configuration settings enforced via provider default_tags (Project, ManagedBy, ComplianceScope, DataClass on every resource), S3 versioning for PHI recovery, and KMS key rotation enabled. Closes GAP-04. Maps to HIPAA 164.308(a)(7).",
+                "props": [
+                  { "name": "implementation-status", "value": "implemented" },
+                  { "name": "framework-control", "value": "HIPAA 164.308(a)(7)" },
+                  { "name": "terraform-resource", "value": "aws_s3_bucket_versioning.uploads" },
+                  { "name": "terraform-resource", "value": "aws_kms_key.phi (enable_key_rotation=true)" },
+                  { "name": "closes-gap", "value": "GAP-04" }
+                ],
+                "links": [
+                  {
+                    "rel": "evidence",
+                    "href": "s3://acme-health-grc-vault/runs/latest/bundle.tar.gz",
+                    "text": "Signed pipeline bundle containing terraform plan.json and state.json."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

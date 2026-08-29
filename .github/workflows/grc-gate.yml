@@ -109,7 +109,7 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         working-directory: terraform
         run: |
-          VAULT=$(terraform output -raw evidence_vault_name 2>/dev/null); VAULT=$(echo "$VAULT" | grep -v "Error|Warning|exited|No outputs" | head -1 || echo "")
+          VAULT=$(terraform output -raw evidence_vault_name 2>/dev/null || true); if [[ "$VAULT" == *"Error"* ]] || [[ "$VAULT" == *"exited"* ]]; then VAULT=""; fi
           if [ -z "$VAULT" ]; then
             echo "Evidence vault not yet deployed — skipping upload"
             exit 0

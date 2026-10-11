@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Deploys only run when started by hand from the Actions tab (see Step 3).
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -70,19 +72,19 @@ jobs:
           sudo mv opa /usr/local/bin/
           opa test -v policies/
 
-      # ── Step 3: Apply (merge to main only) ────────────────────────
+      # ── Step 3: Apply (manual run on main only) ───────────────────
       - name: Terraform Apply (Starter)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
         working-directory: terraform
         run: terraform apply -auto-approve tfplan
 
       # ── Step 4: Sign evidence bundle ──────────────────────────────
       - name: Install Cosign
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
         uses: sigstore/cosign-installer@v3
 
       - name: Capture and Sign Evidence Bundle
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
         working-directory: terraform
         run: |
           RUN_ID="run-$(date +%Y%m%d%H%M%S)-${GITHUB_SHA::8}"
@@ -106,7 +108,7 @@ jobs:
 
       # ── Step 5: Upload to evidence vault ──────────────────────────
       - name: Upload Evidence Bundle to Vault
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch'
         working-directory: terraform
         run: |
           VAULT=$(terraform output -raw evidence_vault_name 2>/dev/null || true); if [[ "$VAULT" == *"Error"* ]] || [[ "$VAULT" == *"exited"* ]]; then VAULT=""; fi

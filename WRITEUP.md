@@ -24,24 +24,28 @@ All eight gaps from GAPS.md are addressed across three layers:
 | GAP-02 DynamoDB AWS-owned key | aws_dynamodb_table.intake_hardened with kms_key_arn | hipaa_cmk_encryption.rego | sc-28 implemented-requirement |
 | GAP-03 No TLS-only bucket policy | aws_s3_bucket_policy.uploads_tls_only with aws:SecureTransport deny | hipaa_tls_only.rego | ac-3 implemented-requirement |
 | GAP-04 No S3 versioning | aws_s3_bucket_versioning.uploads with status=Enabled | hipaa_phi_versioning.rego | cm-6 implemented-requirement |
-| GAP-05 Lambda not in VPC | aws_security_group.lambda + VPC attachment via aws_iam_role_policy_attachment.lambda_vpc | Documented in OSCAL | ac-3 implemented-requirement |
-| GAP-06 No DLQ/X-Ray | aws_sqs_queue.lambda_dlq + aws_lambda_function_event_invoke_config | Documented in OSCAL | au-3 implemented-requirement |
+| GAP-05 Lambda not in VPC (partial) | aws_security_group.lambda + aws_iam_role_policy_attachment.lambda_vpc; function vpc_config pending | Documented in OSCAL | ac-3 implemented-requirement |
+| GAP-06 No DLQ/X-Ray (partial) | aws_sqs_queue.lambda_dlq + aws_lambda_function_event_invoke_config + aws_iam_role_policy_attachment.lambda_xray; function tracing pending | Documented in OSCAL | au-3 implemented-requirement |
 | GAP-07 IAM wildcard permissions | aws_iam_role_policy.lambda_least_privilege replaces dynamodb:* and s3:* | hipaa_least_privilege.rego | ac-3 implemented-requirement |
 | GAP-08 No API GW logging | aws_cloudwatch_log_group.apigw + aws_apigatewayv2_stage.default_hardened | hipaa_audit_logging.rego | au-3 implemented-requirement |
 
 ## Design Decisions
 
 **Object Lock mode: GOVERNANCE**
-GOVERNANCE was selected for this submission so the evidence vault can be
-cleaned up during development. Production deployment would use COMPLIANCE
-mode with a minimum 365-day retention period aligned to HIPAA's 6-year
-record retention requirement (45 CFR 164.530(j)).
+GOVERNANCE mode with a 1-day default retention (`retention_days` in
+terraform/grc/variables.tf) was selected so the evidence vault can be
+cleaned up during development. Production would use COMPLIANCE mode with
+at least 2,190 days (6 years) of retention, matching the Security Rule's
+documentation retention requirement (45 CFR 164.316(b)(2)(i)).
 
-**Auto-apply on merge to main**
-The pipeline applies automatically on merge rather than requiring a manual
-post-merge approval. This reduces friction for the engineering team, which
-the CTO explicitly requested. The policy gate serves as the human-equivalent
-approval step — if the gate passes, the code is compliant enough to deploy.
+**Manual apply via workflow_dispatch**
+Pushes and pull requests run Plan, Policy Check and the OPA tests only.
+Apply, Sign and Upload run only when someone starts the workflow by hand
+from the Actions tab on main. An earlier version applied automatically on
+every merge, which the CTO preferred for speed, but while the policy gate
+is informational (below) an automatic apply would deploy without any real
+approval step. A manual trigger keeps a human in the loop until the gate
+can block on its own.
 
 **AWS credentials via GitHub Secrets (not OIDC)**
 Long-lived access keys were used for the pipeline due to time constraints.
@@ -65,7 +69,7 @@ run as a single plan that includes both layers.
 | 164.308(a)(7) Contingency plan | S3 versioning + KMS rotation | Terraform + Rego |
 | 164.312(a)(1) Access control | Least-privilege IAM | Terraform + Rego |
 | 164.312(b) Audit controls | CloudTrail + API GW logging | Terraform + Rego |
-| 164.312(e)(1) Network boundaries | Lambda in VPC | Terraform + OSCAL |
+| 164.312(e)(1) Transmission security (network isolation) | Lambda security group; VPC placement pending | Terraform + OSCAL |
 
 ## Trade-offs Made
 
@@ -95,9 +99,10 @@ run as a single plan that includes both layers.
 
 ## What I Did Not Get To
 
-- GAP-05 VPC: The security group and IAM policy attachments are deployed.
-  The Lambda function itself requires a new deployment with vpc_config,
-  which needs the starter to be modified directly rather than via override.
+- GAP-05 VPC and GAP-06 X-Ray: The security group and IAM policy
+  attachments are deployed. The Lambda function itself needs vpc_config and
+  tracing_config, which means modifying the starter's function resource
+  directly rather than layering on top of it from terraform/grc/.
 - Cosign verification script: The sign step runs but a verify-evidence.sh
   script was not written. This is the missing link between the vault and
   the OSCAL evidence chain.
